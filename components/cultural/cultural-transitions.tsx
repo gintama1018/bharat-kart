@@ -98,7 +98,7 @@ export function CulturalTransition({ children, type = "fade", isVisible = true }
           initial={currentVariant.initial}
           animate={currentVariant.animate}
           exit={currentVariant.exit}
-          transition={currentVariant.transition}
+          transition={{ duration: 0.4 }}
         >
           {children}
         </motion.div>

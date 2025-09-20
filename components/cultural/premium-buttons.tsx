@@ -6,9 +6,10 @@ import { cn } from "@/lib/utils"
 
 interface PremiumButtonProps {
   children: ReactNode
-  variant?: "primary" | "secondary" | "cultural"
+  variant?: "primary" | "secondary" | "cultural" | "ghost"
   size?: "sm" | "md" | "lg"
   onClick?: () => void
+  onMouseEnter?: () => void
   className?: string
   disabled?: boolean
 }
@@ -18,6 +19,7 @@ export function PremiumButton({
   variant = "primary",
   size = "md",
   onClick,
+  onMouseEnter,
   className,
   disabled = false,
 }: PremiumButtonProps) {
@@ -36,6 +38,7 @@ export function PremiumButton({
     primary: "bg-gradient-to-r from-orange-500 to-red-600 text-white shadow-lg hover:shadow-xl",
     secondary: "border-2 border-orange-300 text-orange-600 bg-transparent hover:bg-orange-50",
     cultural: "bg-gradient-to-r from-amber-500 via-orange-500 to-red-500 text-white shadow-lg",
+    ghost: "border-2 border-transparent text-orange-600 bg-transparent hover:bg-orange-50 hover:border-orange-200",
   }
 
   const sizeClasses = {
@@ -48,6 +51,7 @@ export function PremiumButton({
     <motion.button
       className={cn(baseClasses, variantClasses[variant], sizeClasses[size], className)}
       onClick={handleClick}
+      onMouseEnter={onMouseEnter}
       disabled={disabled}
       whileHover={{
         scale: 1.02,

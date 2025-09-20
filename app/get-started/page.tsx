@@ -2,17 +2,21 @@
 
 import { useState } from "react"
 import { motion, AnimatePresence } from "framer-motion"
+import { useRouter } from "next/navigation"
 import { PremiumButton } from "@/components/cultural/premium-buttons"
 import { PremiumInput } from "@/components/cultural/premium-inputs"
 import { ThreeDBackground } from "@/components/cultural/three-d-background"
 import { useSound } from "@/components/cultural/advanced-sound-manager"
+import { useAuth } from "@/contexts/AuthContext"
 import { Card } from "@/components/ui/card"
 import { ArrowLeft, Mail, Lock, User, Phone, MapPin, Sparkles } from "lucide-react"
 import Link from "next/link"
+import toast from "react-hot-toast"
 
 export default function GetStartedPage() {
   const [mode, setMode] = useState<"choice" | "login" | "register">("choice")
   const [step, setStep] = useState(1)
+  const [loading, setLoading] = useState(false)
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -23,6 +27,8 @@ export default function GetStartedPage() {
   })
   const [errors, setErrors] = useState<Record<string, string>>({})
   const { playSound } = useSound()
+  const { signInWithEmail, signUpWithEmail, user } = useAuth()
+  const router = useRouter()
 
   const culturalPatterns = [
     "M12 2L2 7L12 12L22 7L12 2Z",
@@ -75,6 +81,49 @@ export default function GetStartedPage() {
   const handleModeChange = (newMode: typeof mode) => {
     playSound("click")
     setMode(newMode)
+  }
+
+  const handleLogin = async () => {
+    if (!formData.email || !formData.password) {
+      setErrors({
+        email: !formData.email ? "Email is required" : "",
+        password: !formData.password ? "Password is required" : ""
+      })
+      playSound("error")
+      return
+    }
+
+    setLoading(true)
+    try {
+      await signInWithEmail(formData.email, formData.password)
+      playSound("success")
+      router.push("/states")
+    } catch (error) {
+      console.error("Login error:", error)
+      playSound("error")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleRegister = async () => {
+    if (!validateStep(3)) {
+      playSound("error")
+      return
+    }
+
+    setLoading(true)
+    try {
+      await signUpWithEmail(formData.email, formData.password, formData.name)
+      playSound("success")
+      toast.success("Account created! Please check your email for verification.")
+      router.push("/states")
+    } catch (error) {
+      console.error("Registration error:", error)
+      playSound("error")
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -238,7 +287,7 @@ export default function GetStartedPage() {
                       icon={<Lock className="w-5 h-5" />}
                     />
 
-                    <PremiumButton type="submit" variant="primary" size="lg" className="w-full py-3">
+                    <PremiumButton variant="primary" size="lg" className="w-full py-3" onClick={handleLogin}>
                       Sign In
                     </PremiumButton>
                   </form>
@@ -310,12 +359,11 @@ export default function GetStartedPage() {
                           value={formData.email}
                           onChange={(value) => handleInputChange("email", value)}
                           error={errors.email}
-                          success={formData.email && !errors.email && /\S+@\S+\.\S+/.test(formData.email)}
+                          success={formData.email && !errors.email && /\S+@\S+\.\S+/.test(formData.email) ? true : undefined}
                           icon={<Mail className="w-5 h-5" />}
                         />
 
                         <PremiumButton
-                          type="button"
                           onClick={handleNext}
                           variant="primary"
                           size="lg"
@@ -355,7 +403,6 @@ export default function GetStartedPage() {
 
                         <div className="flex space-x-3">
                           <PremiumButton
-                            type="button"
                             onClick={handleBack}
                             variant="secondary"
                             size="lg"
@@ -364,7 +411,6 @@ export default function GetStartedPage() {
                             Back
                           </PremiumButton>
                           <PremiumButton
-                            type="button"
                             onClick={handleNext}
                             variant="primary"
                             size="lg"
@@ -392,7 +438,7 @@ export default function GetStartedPage() {
                           value={formData.password}
                           onChange={(value) => handleInputChange("password", value)}
                           error={errors.password}
-                          success={formData.password && formData.password.length >= 6}
+                          success={formData.password && formData.password.length >= 6 ? true : undefined}
                           icon={<Lock className="w-5 h-5" />}
                         />
 
@@ -403,13 +449,12 @@ export default function GetStartedPage() {
                           value={formData.confirmPassword}
                           onChange={(value) => handleInputChange("confirmPassword", value)}
                           error={errors.confirmPassword}
-                          success={formData.confirmPassword && formData.password === formData.confirmPassword}
+                          success={formData.confirmPassword && formData.password === formData.confirmPassword ? true : undefined}
                           icon={<Lock className="w-5 h-5" />}
                         />
 
                         <div className="flex space-x-3">
                           <PremiumButton
-                            type="button"
                             onClick={handleBack}
                             variant="secondary"
                             size="lg"
@@ -418,14 +463,13 @@ export default function GetStartedPage() {
                             Back
                           </PremiumButton>
                           <PremiumButton
-                            type="submit"
                             variant="primary"
                             size="lg"
                             className="flex-1"
                             onClick={() => {
                               if (validateStep(3)) {
                                 playSound("success")
-                                // Handle form submission
+                                handleRegister()
                               } else {
                                 playSound("error")
                               }

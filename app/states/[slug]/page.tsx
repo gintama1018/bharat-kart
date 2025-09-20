@@ -1,10 +1,13 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { CulturalLoading } from "@/components/cultural/cultural-loading"
+import { getStateData } from "@/lib/states-data"
+import { useCart } from "@/contexts/CartContext"
 import {
   ArrowLeft,
   MapPin,
@@ -19,106 +22,131 @@ import {
   Filter,
   Grid3X3,
   List,
+  Plus,
+  Minus,
 } from "lucide-react"
 import Link from "next/link"
 import { useParams } from "next/navigation"
+import toast from "react-hot-toast"
+
+interface FeaturedProduct {
+  id: number
+  name: string
+  description: string
+  price: number
+  originalPrice: number
+  image: string
+  artisan: string
+  rating: number
+  reviews: number
+}
+
+interface FeaturedArtisan {
+  id: number
+  name: string
+  craft: string
+  location: string
+  experience: string
+  story: string
+  image: string
+  rating: number
+  products: number
+}
 
 export default function StatePage() {
   const params = useParams()
   const slug = params.slug as string
   const [activeTab, setActiveTab] = useState("products")
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid")
+  const [loading, setLoading] = useState(true)
+  const [stateData, setStateData] = useState<any>(null)
+  const [products, setProducts] = useState<any[]>([])
+  const [artisans, setArtisans] = useState<any[]>([])
+  
+  const { addToCart, totalItems } = useCart()
 
-  // State data - in a real app this would come from an API
-  const stateData = {
-    rajasthan: {
-      name: "Rajasthan",
-      nameHindi: "राजस्थान",
-      tagline: "Land of Kings and Crafts",
-      description:
-        "Rajasthan's craft tradition spans over 1000 years, rooted in royal patronage and desert ingenuity. From the blue pottery of Jaipur to the intricate puppets of Udaipur, every craft tells a story of resilience and artistry.",
-      colors: {
-        primary: "#DC143C",
-        secondary: "#F4A460",
-        accent: "#FFD700",
-      },
-      backgroundImage: "/rajasthan-desert-palace.jpg",
-      statistics: {
-        artisans: 150,
-        products: 1200,
-        heritageSites: 35,
-        festivals: 12,
-      },
-      specialties: [
-        "Kathputli Puppets",
-        "Blue Pottery",
-        "Block Print Textiles",
-        "Kundan Jewelry",
-        "Miniature Paintings",
-        "Leather Crafts",
-      ],
-      culturalStory:
-        "The royal courts of Rajasthan have been patrons of arts and crafts for centuries. The Maharajas commissioned the finest artisans to create masterpieces that adorned their palaces. Today, these traditions continue in the hands of skilled craftspeople who have inherited techniques passed down through generations.",
-      featuredProducts: [
-        {
-          id: 1,
-          name: "Royal Kathputli Puppet",
-          price: 1250,
-          originalPrice: 1800,
-          image: "/rajasthan-desert-palace.jpg",
-          artisan: "Ramesh Kumar",
-          rating: 4.9,
-          reviews: 147,
-        },
-        {
-          id: 2,
-          name: "Jaipur Blue Pottery Vase",
-          price: 850,
-          originalPrice: 1200,
-          image: "/indian-artisan-crafting-pottery.jpg",
-          artisan: "Meera Devi",
-          rating: 4.8,
-          reviews: 89,
-        },
-        {
-          id: 3,
-          name: "Block Print Bedsheet Set",
-          price: 2200,
-          originalPrice: 2800,
-          image: "/gujarat-colorful-textiles-kites.jpg",
-          artisan: "Suresh Chand",
-          rating: 4.9,
-          reviews: 203,
-        },
-      ],
-      featuredArtisans: [
-        {
-          id: 1,
-          name: "Ramesh Kumar",
-          craft: "Kathputli Puppets",
-          experience: "25 years",
-          location: "Udaipur",
-          image: "/rajasthan-desert-palace.jpg",
-          story: "Third generation puppet maker preserving ancient traditions",
-          rating: 4.9,
-          products: 45,
-        },
-        {
-          id: 2,
-          name: "Meera Devi",
-          craft: "Blue Pottery",
-          experience: "18 years",
-          location: "Jaipur",
-          image: "/indian-artisan-crafting-pottery.jpg",
-          story: "Master potter creating contemporary designs with traditional techniques",
-          rating: 4.8,
-          products: 32,
-        },
-      ],
-    },
+  useEffect(() => {
+    const loadStateData = async () => {
+      setLoading(true)
+      
+      try {
+        // First try to get data from API
+        const response = await fetch(`/api/states/${slug}`)
+        if (response.ok) {
+          const apiData = await response.json()
+          setStateData(apiData.state)
+          setProducts(apiData.products)
+          setArtisans(apiData.artisans)
+        } else {
+          // Fallback to static data
+          const fallbackData = getStateData(slug)
+          if (fallbackData) {
+            setStateData(fallbackData)
+            setProducts(fallbackData.featuredProducts || [])
+            setArtisans(fallbackData.featuredArtisans || [])
+          }
+        }
+      } catch (error) {
+        console.error('Error loading state data:', error)
+        // Fallback to static data
+        const fallbackData = getStateData(slug)
+        if (fallbackData) {
+          setStateData(fallbackData)
+          setProducts(fallbackData.featuredProducts || [])
+          setArtisans(fallbackData.featuredArtisans || [])
+        }
+      }
+      
+      setLoading(false)
+    }
+
+    loadStateData()
+  }, [slug])
+
+  const handleAddToCart = async (product: any) => {
+    try {
+      // For now, we'll create a mock product object
+      // In a real app, this would come from the API
+      const mockProduct = {
+        id: product.id.toString(),
+        name: product.name,
+        description: product.description,
+        price: product.price,
+        original_price: product.originalPrice,
+        images: [product.image],
+        category: 'handicraft',
+        state_id: slug,
+        artisan_id: '1',
+        rating: product.rating,
+        reviews_count: product.reviews,
+        stock_quantity: 10,
+        features: [],
+        materials: [],
+        dimensions: '',
+        weight: '',
+        is_featured: true,
+        is_active: true,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      }
+      
+      await addToCart(mockProduct)
+    } catch (error) {
+      toast.error('Failed to add item to cart')
+    }
   }
 
-  const currentState = stateData[slug as keyof typeof stateData] || stateData.rajasthan
+  if (loading || !stateData) {
+    return (
+      <CulturalLoading 
+        state={slug}
+        theme={stateData?.theme || 'Cultural Heritage'}
+        colorPrimary={stateData?.colors.primary || '#DC143C'}
+        colorSecondary={stateData?.colors.secondary || '#FFD700'}
+        colorAccent={stateData?.colors.accent || '#F4A460'}
+      />
+    )
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-50 via-red-50 to-yellow-50">
@@ -170,11 +198,11 @@ export default function StatePage() {
       <section className="relative h-96 overflow-hidden">
         <div className="absolute inset-0">
           <img
-            src={currentState.backgroundImage || "/placeholder.svg"}
-            alt={currentState.name}
+            src={stateData.backgroundImage || "/placeholder.svg"}
+            alt={stateData.name}
             className="w-full h-full object-cover"
           />
-          <div className="absolute inset-0 bg-gradient-to-r from-red-900/80 via-orange-800/70 to-yellow-900/80" />
+          <div className={`absolute inset-0 bg-gradient-to-r ${stateData.heroGradient}`} />
         </div>
 
         <div className="relative z-10 container mx-auto px-4 h-full flex items-center">
@@ -184,14 +212,14 @@ export default function StatePage() {
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.8 }}
           >
-            <h1 className="text-5xl md:text-6xl font-bold mb-4">{currentState.name}</h1>
-            <p className="text-2xl text-yellow-200 mb-2 font-medium">{currentState.nameHindi}</p>
-            <p className="text-xl mb-6 italic">{currentState.tagline}</p>
-            <p className="text-lg mb-8 leading-relaxed">{currentState.description}</p>
+            <h1 className="text-5xl md:text-6xl font-bold mb-4">{stateData.name}</h1>
+            <p className="text-2xl text-yellow-200 mb-2 font-medium">{stateData.nameHindi}</p>
+            <p className="text-xl mb-6 italic">{stateData.tagline}</p>
+            <p className="text-lg mb-8 leading-relaxed">{stateData.description}</p>
 
             <div className="flex flex-wrap gap-4">
               <Button size="lg" className="bg-white text-orange-600 hover:bg-orange-50">
-                Shop {currentState.name} Crafts
+                Shop {stateData.name} Crafts
               </Button>
               <Button
                 size="lg"
@@ -216,10 +244,10 @@ export default function StatePage() {
             viewport={{ once: true }}
           >
             {[
-              { icon: Users, number: currentState.statistics.artisans, label: "Master Artisans" },
-              { icon: ShoppingBag, number: currentState.statistics.products, label: "Unique Products" },
-              { icon: MapPin, number: currentState.statistics.heritageSites, label: "Heritage Sites" },
-              { icon: Calendar, number: currentState.statistics.festivals, label: "Annual Festivals" },
+              { icon: Users, number: stateData.artisans_count || artisans.length || 0, label: "Master Artisans" },
+              { icon: ShoppingBag, number: stateData.products_count || products.length || 0, label: "Unique Products" },
+              { icon: MapPin, number: stateData.heritage_sites || 12, label: "Heritage Sites" },
+              { icon: Calendar, number: stateData.festivals || 8, label: "Annual Festivals" },
             ].map((stat, index) => (
               <motion.div
                 key={stat.label}
@@ -252,11 +280,11 @@ export default function StatePage() {
             <h2 className="text-4xl font-bold mb-4 bg-gradient-to-r from-orange-600 to-red-600 bg-clip-text text-transparent">
               Cultural Heritage
             </h2>
-            <p className="text-xl text-gray-600 max-w-3xl mx-auto">{currentState.culturalStory}</p>
+            <p className="text-xl text-gray-600 max-w-3xl mx-auto">{stateData.cultural_story || stateData.culturalStory}</p>
           </motion.div>
 
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-12">
-            {currentState.specialties.map((specialty, index) => (
+            {(stateData.specialties || []).map((specialty: string, index: number) => (
               <motion.div
                 key={specialty}
                 initial={{ opacity: 0, scale: 0.8 }}
@@ -355,7 +383,7 @@ export default function StatePage() {
                     viewMode === "grid" ? "grid-cols-1 md:grid-cols-2 lg:grid-cols-3" : "grid-cols-1"
                   }`}
                 >
-                  {currentState.featuredProducts.map((product, index) => (
+                  {products.map((product: any, index: number) => (
                     <motion.div
                       key={product.id}
                       initial={{ opacity: 0, y: 50 }}
@@ -370,7 +398,7 @@ export default function StatePage() {
                       >
                         <div className={`relative overflow-hidden ${viewMode === "list" ? "w-64 h-48" : "h-64"}`}>
                           <img
-                            src={product.image || "/placeholder.svg"}
+                            src={(product.images?.[0] || product.image) || "/placeholder.svg"}
                             alt={product.name}
                             className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                           />
@@ -381,7 +409,7 @@ export default function StatePage() {
                           </div>
                           <div className="absolute bottom-4 left-4">
                             <Badge className="bg-red-500 text-white">
-                              {Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)}% OFF
+                              {Math.round((((product.original_price || product.originalPrice) - product.price) / (product.original_price || product.originalPrice)) * 100)}% OFF
                             </Badge>
                           </div>
                         </div>
@@ -389,7 +417,7 @@ export default function StatePage() {
                         <div className={`p-6 ${viewMode === "list" ? "flex-1" : ""}`}>
                           <div className="mb-4">
                             <h3 className="text-xl font-bold text-gray-800 mb-2">{product.name}</h3>
-                            <p className="text-sm text-orange-600 mb-2">by {product.artisan}</p>
+                            <p className="text-sm text-orange-600 mb-2">by {product.artisan?.name || product.artisan}</p>
                             <div className="flex items-center space-x-2 mb-3">
                               <div className="flex items-center">
                                 <Star className="w-4 h-4 text-yellow-500 fill-current" />
@@ -402,11 +430,14 @@ export default function StatePage() {
                           <div className="flex items-center justify-between mb-4">
                             <div>
                               <span className="text-2xl font-bold text-gray-800">₹{product.price}</span>
-                              <span className="text-lg text-gray-500 line-through ml-2">₹{product.originalPrice}</span>
+                              <span className="text-lg text-gray-500 line-through ml-2">₹{product.original_price || product.originalPrice}</span>
                             </div>
                           </div>
 
-                          <Button className="w-full bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 text-white">
+                          <Button 
+                            onClick={() => handleAddToCart(product)}
+                            className="w-full bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 text-white"
+                          >
                             Add to Cart
                           </Button>
                         </div>
@@ -425,7 +456,7 @@ export default function StatePage() {
                 exit={{ opacity: 0, y: -20 }}
               >
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                  {currentState.featuredArtisans.map((artisan, index) => (
+                  {artisans.map((artisan: any, index: number) => (
                     <motion.div
                       key={artisan.id}
                       initial={{ opacity: 0, y: 50 }}

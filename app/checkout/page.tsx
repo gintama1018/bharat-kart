@@ -2,6 +2,8 @@
 
 import { useState } from "react"
 import { motion, AnimatePresence } from "framer-motion"
+import { useCart } from "@/contexts/CartContext"
+import { useAuth } from "@/contexts/AuthContext"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -20,11 +22,27 @@ import {
   MapPin,
 } from "lucide-react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
+import toast from "react-hot-toast"
 
 export default function CheckoutPage() {
   const [currentStep, setCurrentStep] = useState(1)
   const [paymentMethod, setPaymentMethod] = useState("")
   const [isProcessing, setIsProcessing] = useState(false)
+  const [shippingAddress, setShippingAddress] = useState({
+    firstName: '',
+    lastName: '',
+    email: '',
+    phone: '',
+    address: '',
+    city: '',
+    state: '',
+    pincode: ''
+  })
+  
+  const { items, totalAmount, clearCart } = useCart()
+  const { user } = useAuth()
+  const router = useRouter()
 
   const steps = [
     { id: 1, title: "Address", icon: MapPin },
@@ -33,34 +51,84 @@ export default function CheckoutPage() {
     { id: 4, title: "Review", icon: CheckCircle },
   ]
 
-  const orderItems = [
-    {
-      id: "RAJ001",
-      name: "Royal Kathputli Puppet",
-      price: 1250,
-      quantity: 1,
-      image: "/rajasthan-desert-palace.jpg",
-    },
-    {
-      id: "GUJ001",
-      name: "Bandhani Silk Dupatta",
-      price: 850,
-      quantity: 2,
-      image: "/gujarat-colorful-textiles-kites.jpg",
-    },
-  ]
-
-  const subtotal = orderItems.reduce((sum, item) => sum + item.price * item.quantity, 0)
   const shipping = 0 // Free shipping
-  const total = subtotal + shipping
+  const total = totalAmount + shipping
 
-  const handlePayment = () => {
+  const handlePayment = async () => {
+    if (!user) {
+      toast.error('Please sign in to complete your order')
+      router.push('/auth')
+      return
+    }
+
+    if (!paymentMethod) {
+      toast.error('Please select a payment method')
+      return
+    }
+
     setIsProcessing(true)
-    // Simulate payment processing
-    setTimeout(() => {
+
+    try {
+      let paymentResponse
+      
+      if (paymentMethod === 'razorpay' || paymentMethod === 'upi') {
+        // Use Razorpay for UPI and card payments in India
+        paymentResponse = await fetch('/api/payments/razorpay', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            amount: total,
+            currency: 'INR',
+            receipt: `order_${Date.now()}`,
+            notes: {
+              userId: user.id,
+              items: items.length,
+            },
+          }),
+        })
+      } else {
+        // Use Stripe for international payments
+        paymentResponse = await fetch('/api/payments/stripe', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            amount: total,
+            currency: 'inr',
+            metadata: {
+              userId: user.id,
+              items: items.length,
+            },
+          }),
+        })
+      }
+
+      const paymentData = await paymentResponse.json()
+
+      if (!paymentResponse.ok) {
+        throw new Error(paymentData.error || 'Payment setup failed')
+      }
+
+      // For demo purposes, we'll simulate successful payment
+      setTimeout(() => {
+        toast.success('Payment successful! Order placed.')
+        clearCart()
+        router.push('/orders')
+      }, 2000)
+
+    } catch (error: any) {
+      console.error('Payment error:', error)
+      toast.error(error.message || 'Payment failed. Please try again.')
+    } finally {
       setIsProcessing(false)
-      // Redirect to success page
-    }, 3000)
+    }
+  }
+
+  const handleAddressChange = (field: string, value: string) => {
+    setShippingAddress(prev => ({ ...prev, [field]: value }))
   }
 
   return (
@@ -144,31 +212,68 @@ export default function CheckoutPage() {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
                         <Label htmlFor="firstName">First Name</Label>
-                        <Input id="firstName" placeholder="Enter first name" className="mt-1" />
+                        <Input 
+                          id="firstName" 
+                          placeholder="Enter first name" 
+                          value={shippingAddress.firstName}
+                          onChange={(e) => handleAddressChange('firstName', e.target.value)}
+                          className="mt-1" 
+                        />
                       </div>
                       <div>
                         <Label htmlFor="lastName">Last Name</Label>
-                        <Input id="lastName" placeholder="Enter last name" className="mt-1" />
+                        <Input 
+                          id="lastName" 
+                          placeholder="Enter last name" 
+                          value={shippingAddress.lastName}
+                          onChange={(e) => handleAddressChange('lastName', e.target.value)}
+                          className="mt-1" 
+                        />
                       </div>
                       <div className="md:col-span-2">
                         <Label htmlFor="email">Email Address</Label>
-                        <Input id="email" type="email" placeholder="Enter email address" className="mt-1" />
+                        <Input 
+                          id="email" 
+                          type="email" 
+                          placeholder="Enter email address" 
+                          value={shippingAddress.email}
+                          onChange={(e) => handleAddressChange('email', e.target.value)}
+                          className="mt-1" 
+                        />
                       </div>
                       <div className="md:col-span-2">
                         <Label htmlFor="phone">Phone Number</Label>
-                        <Input id="phone" placeholder="+91 XXXXX XXXXX" className="mt-1" />
+                        <Input 
+                          id="phone" 
+                          placeholder="+91 XXXXX XXXXX" 
+                          value={shippingAddress.phone}
+                          onChange={(e) => handleAddressChange('phone', e.target.value)}
+                          className="mt-1" 
+                        />
                       </div>
                       <div className="md:col-span-2">
                         <Label htmlFor="address">Street Address</Label>
-                        <Input id="address" placeholder="House no, Building, Street" className="mt-1" />
+                        <Input 
+                          id="address" 
+                          placeholder="House no, Building, Street" 
+                          value={shippingAddress.address}
+                          onChange={(e) => handleAddressChange('address', e.target.value)}
+                          className="mt-1" 
+                        />
                       </div>
                       <div>
                         <Label htmlFor="city">City</Label>
-                        <Input id="city" placeholder="Enter city" className="mt-1" />
+                        <Input 
+                          id="city" 
+                          placeholder="Enter city" 
+                          value={shippingAddress.city}
+                          onChange={(e) => handleAddressChange('city', e.target.value)}
+                          className="mt-1" 
+                        />
                       </div>
                       <div>
                         <Label htmlFor="state">State</Label>
-                        <Select>
+                        <Select value={shippingAddress.state} onValueChange={(value) => handleAddressChange('state', value)}>
                           <SelectTrigger className="mt-1">
                             <SelectValue placeholder="Select state" />
                           </SelectTrigger>
@@ -176,12 +281,23 @@ export default function CheckoutPage() {
                             <SelectItem value="rajasthan">Rajasthan</SelectItem>
                             <SelectItem value="gujarat">Gujarat</SelectItem>
                             <SelectItem value="maharashtra">Maharashtra</SelectItem>
+                            <SelectItem value="kerala">Kerala</SelectItem>
+                            <SelectItem value="tamil-nadu">Tamil Nadu</SelectItem>
+                            <SelectItem value="west-bengal">West Bengal</SelectItem>
+                            <SelectItem value="punjab">Punjab</SelectItem>
+                            <SelectItem value="karnataka">Karnataka</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
                       <div>
                         <Label htmlFor="pincode">PIN Code</Label>
-                        <Input id="pincode" placeholder="Enter PIN code" className="mt-1" />
+                        <Input 
+                          id="pincode" 
+                          placeholder="Enter PIN code" 
+                          value={shippingAddress.pincode}
+                          onChange={(e) => handleAddressChange('pincode', e.target.value)}
+                          className="mt-1" 
+                        />
                       </div>
                     </div>
                     <Button
@@ -258,10 +374,9 @@ export default function CheckoutPage() {
                     <h2 className="text-2xl font-bold mb-6 text-gray-800">Payment Method</h2>
                     <div className="space-y-4">
                       {[
-                        { id: "upi", label: "UPI Payment", icon: Smartphone, desc: "Pay using UPI apps" },
-                        { id: "card", label: "Credit/Debit Card", icon: CreditCard, desc: "Visa, Mastercard, RuPay" },
-                        { id: "netbanking", label: "Net Banking", icon: Building, desc: "All major banks" },
-                        { id: "wallet", label: "Digital Wallets", icon: Wallet, desc: "Paytm, PhonePe, etc." },
+                        { id: "razorpay", label: "Razorpay (UPI/Cards)", icon: Smartphone, desc: "Pay using UPI, Cards, Wallets" },
+                        { id: "stripe", label: "International Cards", icon: CreditCard, desc: "Visa, Mastercard (International)" },
+                        { id: "cod", label: "Cash on Delivery", icon: Wallet, desc: "Pay when you receive" },
                       ].map((method) => (
                         <div
                           key={method.id}
@@ -342,18 +457,18 @@ export default function CheckoutPage() {
                       <div>
                         <h3 className="font-semibold mb-4">Order Items</h3>
                         <div className="space-y-3">
-                          {orderItems.map((item) => (
+                          {items.map((item) => (
                             <div key={item.id} className="flex items-center space-x-4 p-3 bg-gray-50 rounded-lg">
                               <img
-                                src={item.image || "/placeholder.svg"}
-                                alt={item.name}
+                                src={item.product.images?.[0] || "/placeholder.svg"}
+                                alt={item.product.name}
                                 className="w-16 h-16 object-cover rounded"
                               />
                               <div className="flex-1">
-                                <h4 className="font-medium">{item.name}</h4>
+                                <h4 className="font-medium">{item.product.name}</h4>
                                 <p className="text-sm text-gray-600">Qty: {item.quantity}</p>
                               </div>
-                              <span className="font-semibold">₹{item.price * item.quantity}</span>
+                              <span className="font-semibold">₹{item.product.price * item.quantity}</span>
                             </div>
                           ))}
                         </div>
@@ -394,12 +509,12 @@ export default function CheckoutPage() {
               <h3 className="text-xl font-bold mb-6 text-gray-800">Order Summary</h3>
 
               <div className="space-y-3 mb-6">
-                {orderItems.map((item) => (
+                {items.map((item) => (
                   <div key={item.id} className="flex justify-between text-sm">
                     <span>
-                      {item.name} × {item.quantity}
+                      {item.product.name} × {item.quantity}
                     </span>
-                    <span>₹{item.price * item.quantity}</span>
+                    <span>₹{item.product.price * item.quantity}</span>
                   </div>
                 ))}
               </div>
@@ -407,7 +522,7 @@ export default function CheckoutPage() {
               <div className="space-y-3 mb-6 pt-4 border-t border-gray-200">
                 <div className="flex justify-between">
                   <span>Subtotal</span>
-                  <span>₹{subtotal}</span>
+                  <span>₹{totalAmount}</span>
                 </div>
                 <div className="flex justify-between text-green-600">
                   <span>Shipping</span>

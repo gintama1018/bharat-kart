@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion"
 import { PremiumButton } from "@/components/cultural/premium-buttons"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { RobustImage } from "@/components/ui/robust-image"
 import { ArrowRight, MapPin, Users, Star, Heart, ShoppingBag, Globe, Sparkles, Menu, X } from "lucide-react"
 import Link from "next/link"
 import { FloatingElements } from "@/components/cultural/floating-elements"
@@ -482,10 +483,11 @@ export default function LandingPage() {
                   >
                     <Card className="overflow-hidden group cursor-pointer border-0 shadow-lg hover:shadow-2xl transition-all duration-300 bg-card">
                       <div className="relative h-48 sm:h-56 lg:h-64 overflow-hidden">
-                        <img
-                          src={state.image || "/placeholder.svg"}
+                        <RobustImage
+                          src={state.image}
                           alt={state.name}
                           className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                          context="state"
                         />
                         <div
                           className={`absolute inset-0 bg-gradient-to-t ${state.color} opacity-60 group-hover:opacity-40 transition-opacity`}

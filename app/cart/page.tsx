@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
+import { RobustImage } from "@/components/ui/robust-image"
 import {
   ArrowLeft,
   Trash2,
@@ -215,7 +216,7 @@ export default function CartPage() {
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, x: -100, scale: 0.8 }}
                     transition={{ delay: index * 0.1 }}
-                    whileHover={{ y: -2, shadow: "0 10px 25px rgba(0,0,0,0.1)" }}
+                    whileHover={{ y: -2 }}
                   >
                     <Card
                       className={`p-6 border-2 ${item.borderPattern} hover:shadow-xl transition-all duration-300 relative overflow-hidden`}
@@ -226,10 +227,11 @@ export default function CartPage() {
                         <div className="relative w-full md:w-40 h-40 flex-shrink-0">
                           <div className="absolute inset-0 bg-gradient-to-br from-orange-200 to-red-200 rounded-lg transform rotate-1" />
                           <div className="relative bg-white p-2 rounded-lg shadow-lg">
-                            <img
-                              src={item.image || "/placeholder.svg"}
+                            <RobustImage
+                              src={item.image}
                               alt={item.name}
                               className="w-full h-32 object-cover rounded"
+                              context="product"
                             />
                           </div>
                           {!item.inStock && (
